@@ -1,0 +1,7 @@
+name: Test Runner
+on: [push]
+jobs:
+  test:
+    runs-on: [self-hosted, Windows, X64, label]  # use the labels you added
+    steps:
+      - run: echo "Hello from self-hosted runner!"
