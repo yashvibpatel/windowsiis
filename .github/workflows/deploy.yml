@@ -13,12 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Remove default IIS files
+      - name: Show current user & folder info
         shell: powershell
         run: |
-          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+          whoami
+          Get-ChildItem -Path "C:\inetpub\wwwroot" -Force
+
+      - name: Remove default IIS files (with logging)
+        shell: powershell
+        run: |
+          Write-Host "Removing default IIS files..."
+          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force -ErrorAction Stop
+          Write-Host "Removal done."
 
       - name: Copy website files to IIS
         shell: powershell
         run: |
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\index.html" -Destination "C:\inetpub\wwwroot\" -Force
+          Write-Host "Copying files..."
+          Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force -ErrorAction Stop
+          Write-Host "Copy done."
