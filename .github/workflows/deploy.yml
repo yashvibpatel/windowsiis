@@ -2,47 +2,28 @@ name: Deploy to IIS
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]  # Trigger deployment on push to main
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Windows, X64]
-
-
+    runs-on: self-hosted  # Your EC2 self-hosted runner
     steps:
-    # 1️⃣ Checkout repository
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # Step 1: Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    # 2️⃣ Grant NETWORK SERVICE full control to wwwroot
-    - name: Grant IIS permissions
-      run: |
-        $path = "C:\inetpub\wwwroot"
-        $acl = Get-Acl $path
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("NETWORK SERVICE","FullControl","ContainerInherit,ObjectInherit","None","Allow")
-        $acl.SetAccessRule($rule)
-        Set-Acl $path $acl
-      shell: powershell
+      # Step 2: Remove old IIS files
+      - name: Remove old IIS files
+        run: Remove-Item -Recurse -Force "C:\inetpub\wwwroot\*" -ErrorAction SilentlyContinue
+        shell: powershell
 
-    # 3️⃣ Remove default IIS files
-    - name: Remove default IIS files
-      run: Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
-      shell: powershell
+      # Step 3: Copy all files from repo to IIS
+      - name: Copy new files to IIS
+        run: Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+        shell: powershell
 
-    # 4️⃣ Copy repository files to wwwroot
-    - name: Deploy files to wwwroot
-      run: Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
-      shell: powershell
-
-    # 5️⃣ Optional: Recycle DefaultAppPool
-    - name: Recycle IIS App Pool
-      run: |
-        Import-Module WebAdministration
-        Restart-WebAppPool DefaultAppPool
-      shell: powershell
-
-    # 6️⃣ Test site
-    - name: Test site
-      run: Invoke-WebRequest http://localhost
-      shell: powershell
+      # Step 4: Recycle IIS App Pool (Admin required)
+      - name: Recycle IIS App Pool
+        run: |
+          Start-Process powershell -Verb runAs -ArgumentList 'Import-Module WebAdministration; Restart-WebAppPool DefaultAppPool'
+        shell: powershell
