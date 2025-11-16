@@ -7,28 +7,41 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # 1️⃣ Checkout repository
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Show current user & folder info
-        shell: powershell
-        run: |
-          whoami
-          Get-ChildItem -Path "C:\inetpub\wwwroot" -Force
+    # 2️⃣ Grant NETWORK SERVICE full control to wwwroot
+    - name: Grant IIS permissions
+      run: |
+        $path = "C:\inetpub\wwwroot"
+        $acl = Get-Acl $path
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("NETWORK SERVICE","FullControl","ContainerInherit,ObjectInherit","None","Allow")
+        $acl.SetAccessRule($rule)
+        Set-Acl $path $acl
+      shell: powershell
 
-      - name: Remove default IIS files (with logging)
-        shell: powershell
-        run: |
-          Write-Host "Removing default IIS files..."
-          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force -ErrorAction Stop
-          Write-Host "Removal done."
+    # 3️⃣ Remove default IIS files
+    - name: Remove default IIS files
+      run: Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+      shell: powershell
 
-      - name: Copy website files to IIS
-        shell: powershell
-        run: |
-          Write-Host "Copying files..."
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force -ErrorAction Stop
-          Write-Host "Copy done."
+    # 4️⃣ Copy repository files to wwwroot
+    - name: Deploy files to wwwroot
+      run: Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+      shell: powershell
+
+    # 5️⃣ Optional: Recycle DefaultAppPool
+    - name: Recycle IIS App Pool
+      run: |
+        Import-Module WebAdministration
+        Restart-WebAppPool DefaultAppPool
+      shell: powershell
+
+    # 6️⃣ Test site
+    - name: Test site
+      run: Invoke-WebRequest http://localhost
+      shell: powershell
