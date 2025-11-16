@@ -2,7 +2,8 @@ name: Deploy to IIS
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -12,7 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Copy files to IIS
-        run: |
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+      - name: Remove default IIS files
         shell: powershell
+        run: |
+          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+
+      - name: Copy website files to IIS
+        shell: powershell
+        run: |
+          Copy-Item -Path "$env:GITHUB_WORKSPACE\index.html" -Destination "C:\inetpub\wwwroot\" -Force
